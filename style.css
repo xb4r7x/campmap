@@ -1,0 +1,47 @@
+html,
+body,
+#map {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+#banner {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 10px 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+#banner h1 {
+  margin: 0;
+  font-size: 18px;
+}
+
+#banner p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #555;
+}
+
+.maplibregl-popup-content {
+  font-size: 14px;
+}
+
+.maplibregl-popup-content h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.maplibregl-popup-content .meta {
+  color: #555;
+  margin: 2px 0;
+}
