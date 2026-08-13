@@ -13,6 +13,22 @@
     <h1>Campmap</h1>
     <p id="count">Loading campgrounds…</p>
   </div>
+  <div id="filters">
+    <div class="filters-head">
+      <span>Categories</span>
+      <span class="filter-links"><a href="#" id="filter-all">all</a> / <a href="#" id="filter-none">none</a></span>
+    </div>
+    <div id="filter-list"></div>
+  </div>
+  <div id="gate">
+    <form id="unlock-form">
+      <h1>Campmap</h1>
+      <p>Enter the password to view campgrounds.</p>
+      <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+      <button type="submit">Unlock</button>
+      <p id="gate-status" role="alert"></p>
+    </form>
+  </div>
   <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
   <script src="map.js"></script>
 </body>

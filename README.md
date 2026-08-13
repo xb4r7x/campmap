@@ -1,43 +1,53 @@
 # campmap
 
-A free, static map of ~40,000 US campgrounds. Built with MapLibre GL + OpenFreeMap
-tiles + built-in clustering. No backend, no API keys, no cost.
+A password-protected map of US campgrounds. Built with MapLibre GL + OpenFreeMap
+tiles + built-in clustering. Static site, no backend, no API keys, no cost.
 
-Live site: `https://<your-username>.github.io/campmap/`
+Live site: `https://xb4r7x.github.io/campmap/`
 
 ## How it works
 
 - **Base map**: [OpenFreeMap](https://openfreemap.org) vector tiles (free, no usage
   limits, no registration). Attribution is included automatically by the style.
-- **Data**: `points.json` — a GeoJSON `FeatureCollection` of Points. 40k points is
-  ~12 MB raw / ~1.3 MB gzipped (hosts serve it compressed automatically).
+- **Data**: GeoJSON is gzip-compressed and **AES-256-GCM encrypted** (key derived
+  via PBKDF2 from a password) into `points.json.enc`. The page asks for the
+  password, decrypts in the browser, and renders the map. Without the password the
+  data is unreadable, even though it's served publicly.
 - **Rendering**: MapLibre clusters points at low zoom; clicking a cluster zooms in;
-  clicking a marker opens a popup with details.
+  clicking a marker opens a popup. Categories can be toggled on/off in the top-right
+  panel.
 
 ## Project layout
 
 ```
-index.html            page + library includes
+index.html            page + library includes + password gate + filter UI
 style.css             page styling
-map.js                map init, clustering, popups
-points.json           your data (generated sample data by default)
-generate_points.py    regenerates sample points.json (for testing)
-netlify.toml          deploy config for Netlify
+map.js                map init, clustering, popups, decrypt, category filters
+points.json.enc       your data (encrypted, committed)
+generate_points.py    sample-data generator (also encrypts with --password)
+gpx_to_geojson.py     converts GPX waypoints into points.json
+.gitignore            ignores points.json — never commit the plain data
 ```
-
-## Run locally
-
-```bash
-python3 -m http.server 8000
-# open http://localhost:8000
-```
-
-(`file://` won't work — `fetch()` needs an HTTP server.)
 
 ## Use your own data
 
-Replace `points.json` with a GeoJSON `FeatureCollection` of Points. Each point's
-`properties` are shown in the popup; the map expects:
+### From GPX files
+
+Drop `.gpx` files into `gpx/`, then:
+
+```bash
+python3 gpx_to_geojson.py                      # writes points.json
+python3 gpx_to_geojson.py --category-map "Tent Site=Tent,RV Site=RV"
+```
+
+Waypoints become campgrounds. The category comes from each waypoint's `<type>`
+element, else `<sym>`, else "Unknown" — run it once without a map to see what raw
+values your files contain, then map them to clean names.
+
+### Directly
+
+`points.json` is a GeoJSON `FeatureCollection` of Points. Properties shown in the
+popup / filters:
 
 ```json
 {
@@ -59,27 +69,42 @@ Replace `points.json` with a GeoJSON `FeatureCollection` of Points. Each point's
 }
 ```
 
-Any fields are fine — `map.js` only requires `name`; everything else is optional.
-Add extra fields (URL, phone, …) and they'll render if you extend the popup in
-`map.js`.
+Only `name` and `category` are required — the rest is optional. Extra fields render
+if you extend the popup in `map.js`.
 
-## Deploy (free)
+### After changing data: re-encrypt
 
-### Option A — Netlify (fastest, no git repo needed)
+```bash
+python3 generate_points.py --password 'your password'   # reads points.json, writes points.json.enc
+```
 
-1. Go to https://app.netlify.com/drop
-2. Drag the `campmap` folder onto the page
-3. Done — you get a `*.netlify.app` URL; gzip + global CDN included
+Use the **same password** the site already uses, or update it if you're changing it.
+`points.json` (plaintext) is gitignored and must never be committed.
 
-### Option B — GitHub Pages
+## Run locally
 
-1. Create a repo, push this folder to it
-2. Repo → **Settings → Pages** → Source: **Deploy from a branch**, branch `main`, folder `/ (root)`
-3. Your site is live at `https://<username>.github.io/<repo>/`
+```bash
+python3 -m http.server 8000
+# open http://localhost:8000
+```
+
+(`file://` won't work — `fetch()` needs an HTTP server.) If `points.json` is
+present locally it renders without a password; otherwise you get the gate and it
+reads `points.json.enc`.
+
+## Deploy (GitHub Pages)
+
+```bash
+git push            # GitHub builds automatically
+```
+
+Site lives at `https://xb4r7x.github.io/campmap/`. No build step, no config.
 
 ## Notes
 
-- Tile service is the only external dependency. To switch providers later, change
+- Tile service is the only external dependency. To switch providers, change
   `MAP_STYLE` in `map.js` (e.g. to an OSM raster style) — one line.
-- 40,000 points is well within MapLibre's comfort zone. If you grow past ~100k,
-  consider a vectorized tile source or dropping to a PMTiles archive.
+- Security model: one shared password, no accounts or revocation. Data security
+  equals password strength, and friends who know the password can share it.
+- 40,000 points is well within MapLibre's comfort zone. Beyond ~100k, consider a
+  PMTiles archive.

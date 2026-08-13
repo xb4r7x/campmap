@@ -2,8 +2,14 @@
 """Generate sample campground data for campmap.
 
 Usage:
-    python3 generate_points.py              # 40,000 points -> points.json
-    python3 generate_points.py 100000       # custom count
+    python3 generate_points.py                        # 40,000 points -> points.json (plain)
+    python3 generate_points.py 100000                 # custom count
+    python3 generate_points.py --password 'secret'    # writes points.json.enc instead
+
+Without a password the plain GeoJSON goes to points.json (gitignored — never
+commit it). With a password it writes points.json.enc, a gzip + AES-256-GCM
+encrypted file that the site decrypts in the browser. CAMPMAP_PASSWORD env var
+also works.
 
 Points are scattered around major US cities (weighted by population) so the
 map looks plausible and the clustering gets exercised. Swap in your own real
@@ -14,8 +20,16 @@ rating / location / description.
 
 import json
 import math
+import os
 import random
 import sys
+import zlib
+
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+PBKDF2_ITERATIONS = 250_000
 
 # (name, lat, lng, population in millions)
 CITIES = [
@@ -114,8 +128,41 @@ def scatter(rng, clat, clng, pop):
     return clat + dlat, clng + dlng
 
 
+def encrypt_json(geojson, password, out_path):
+    """gzip + AES-256-GCM the GeoJSON. File format: salt(16) + iv(12) + ciphertext."""
+    raw = json.dumps(geojson, separators=(",", ":")).encode("utf-8")
+    compressor = zlib.compressobj(level=9, wbits=16 + 15)  # gzip format
+    compressed = compressor.compress(raw) + compressor.flush()
+
+    salt = os.urandom(16)
+    iv = os.urandom(12)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=PBKDF2_ITERATIONS,
+    )
+    key = kdf.derive(password.encode("utf-8"))
+    ciphertext = AESGCM(key).encrypt(iv, compressed, None)
+
+    with open(out_path, "wb") as fh:
+        fh.write(salt + iv + ciphertext)
+    return len(ciphertext)
+
+
 def main():
-    count = int(sys.argv[1]) if len(sys.argv) > 1 else 40_000
+    argv = sys.argv[1:]
+    password = os.environ.get("CAMPMAP_PASSWORD")
+    positional = []
+    i = 0
+    while i < len(argv):
+        if argv[i] == "--password":
+            password = argv[i + 1]
+            i += 2
+        else:
+            positional.append(argv[i])
+            i += 1
+    count = int(positional[0]) if positional else 40_000
     rng = random.Random(42)
     weights = [p for _, _, _, p in CITIES]
 
@@ -158,10 +205,13 @@ def main():
         })
 
     out = {"type": "FeatureCollection", "features": features}
-    with open("points.json", "w", encoding="utf-8") as fh:
-        json.dump(out, fh, separators=(",", ":"))
-
-    print(f"Wrote {len(features)} features to points.json")
+    if password:
+        size = encrypt_json(out, password, "points.json.enc")
+        print(f"Wrote {len(features)} features to points.json.enc ({size} bytes, encrypted)")
+    else:
+        with open("points.json", "w", encoding="utf-8") as fh:
+            json.dump(out, fh, separators=(",", ":"))
+        print(f"Wrote {len(features)} features to points.json")
 
 
 if __name__ == "__main__":

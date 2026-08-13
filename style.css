@@ -45,3 +45,117 @@ body {
   color: #555;
   margin: 2px 0;
 }
+
+#gate {
+  position: absolute;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.94);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#gate.visible {
+  visibility: visible;
+  opacity: 1;
+}
+
+#gate form {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 24px 28px;
+  width: 300px;
+  text-align: center;
+}
+
+#gate h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+#gate p {
+  margin: 0 0 12px;
+  color: #666;
+  font-size: 13px;
+}
+
+#gate input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+#gate button {
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: 6px;
+  background: #2c7a4b;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#gate button:hover {
+  background: #256b40;
+}
+
+#gate-status {
+  color: #c0392b;
+  min-height: 1em;
+  margin: 8px 0 0;
+}
+
+#filters {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  padding: 10px 14px;
+  font-size: 13px;
+  min-width: 160px;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#filters.visible {
+  visibility: visible;
+  opacity: 1;
+}
+
+.filters-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.filter-links a {
+  color: #2c7a4b;
+  text-decoration: none;
+  font-weight: 400;
+}
+
+#filter-list label {
+  display: block;
+  margin: 3px 0;
+  cursor: pointer;
+}
+
+#filter-list input {
+  margin-right: 6px;
+}
