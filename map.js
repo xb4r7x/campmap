@@ -157,7 +157,7 @@ function renderData(geojson) {
     const f = e.features[0];
     new maplibregl.Popup({ offset: 16 })
       .setLngLat(f.geometry.coordinates)
-      .setHTML(popupHtml(f.properties))
+      .setHTML(popupHtml(f.properties, f.geometry.coordinates))
       .addTo(map);
   });
 
@@ -224,17 +224,21 @@ function applyFilters() {
     `${filtered.length.toLocaleString()} campgrounds`;
 }
 
-function popupHtml(p) {
+function popupHtml(p, coords) {
   const rows = [
     ['Category', p.category],
     ['Price', p.price ? `$${p.price}/night` : null],
     ['Rating', p.rating ? `${p.rating}★` : null],
   ].filter(([, v]) => v);
+  const [lng, lat] = coords || [0, 0];
+  const coordText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   return (
     `<h3>${escapeHtml(p.name)}</h3>` +
     (p.location ? `<p class="meta">${escapeHtml(p.location)}</p>` : '') +
     `<p>${escapeHtml(p.description || '')}</p>` +
-    rows.map(([k, v]) => `<p class="meta"><strong>${k}:</strong> ${escapeHtml(String(v))}</p>`).join('')
+    rows.map(([k, v]) => `<p class="meta"><strong>${k}:</strong> ${escapeHtml(String(v))}</p>`).join('') +
+    `<p class="meta"><strong>Lat/Lng:</strong> ${coordText} · ` +
+    `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener">Open in Google Maps</a></p>`
   );
 }
 
