@@ -12,15 +12,13 @@ const map = new maplibregl.Map({
   zoom: 3.5,
 });
 
-map.on('load', () => {
-  fetch('points.json')
-    .then((r) => {
-      if (!r.ok) throw new Error('no plaintext data');
-      return r.json();
-    })
-    .then(renderData)
-    .catch(() => showGate());
-});
+fetch('points.json')
+  .then((r) => {
+    if (!r.ok) throw new Error('no plaintext data');
+    return r.json();
+  })
+  .then(renderData)
+  .catch(() => showGate());
 
 function showGate() {
   const gate = document.getElementById('gate');
@@ -78,6 +76,11 @@ async function decryptData(buffer, password) {
 }
 
 function renderData(geojson) {
+  if (!map.loaded()) {
+    map.once('load', () => renderData(geojson));
+    return;
+  }
+
   map.addSource('campsites', {
     type: 'geojson',
     data: geojson,
