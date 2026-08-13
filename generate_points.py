@@ -9,7 +9,8 @@ Usage:
 Without a password the plain GeoJSON goes to points.json (gitignored — never
 commit it). With a password it writes points.json.enc, a gzip + AES-256-GCM
 encrypted file that the site decrypts in the browser. CAMPMAP_PASSWORD env var
-also works.
+also works. If points.json already exists (e.g. from gpx_to_geojson.py) it is
+encrypted as-is; otherwise sample data is generated first.
 
 Points are scattered around major US cities (weighted by population) so the
 map looks plausible and the clustering gets exercised. Swap in your own real
@@ -163,6 +164,14 @@ def main():
             positional.append(argv[i])
             i += 1
     count = int(positional[0]) if positional else 40_000
+
+    if password and os.path.exists("points.json"):
+        with open("points.json", "r", encoding="utf-8") as fh:
+            geojson = json.load(fh)
+        size = encrypt_json(geojson, password, "points.json.enc")
+        print(f"Encrypted existing points.json -> points.json.enc "
+              f"({size} bytes, {len(geojson['features'])} features)")
+        return
     rng = random.Random(42)
     weights = [p for _, _, _, p in CITIES]
 
