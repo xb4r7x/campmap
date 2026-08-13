@@ -81,6 +81,17 @@ python3 generate_points.py --password 'your password'   # reads points.json, wri
 Use the **same password** the site already uses, or update it if you're changing it.
 `points.json` (plaintext) is gitignored and must never be committed.
 
+## Adding points in the browser (local-only)
+
+The map has an **Add point** button (top-right panel): click it, click the map, fill
+in the details, save. Added points show in orange and are stored in that browser's
+localStorage — they persist across reloads **on that browser only**; they do not
+sync to other people's browsers (a static page has nowhere to write shared data).
+
+The **Export** button downloads your added points as a GeoJSON file. Hand that file
+(or drop its features into `points.json`) to fold them into the shared dataset
+before re-encrypting.
+
 ## Run locally
 
 ```bash

@@ -4,12 +4,26 @@ const POINT_LAYER = 'campsites';
 
 let allFeatures = null;
 let activeCategories = new Set();
+let localPoints = loadLocal();
+let addMode = false;
 
 const map = new maplibregl.Map({
   container: 'map',
   style: MAP_STYLE,
   center: [-98.5, 39.5],
   zoom: 3.5,
+});
+
+document.getElementById('add-toggle').addEventListener('click', toggleAddMode);
+document.getElementById('export-local').addEventListener('click', exportLocal);
+
+map.on('click', (e) => {
+  if (!addMode) return;
+  const hit = map.queryRenderedFeatures(e.point, {
+    layers: ['clusters', POINT_LAYER, 'local-points'],
+  });
+  if (hit.length) return;
+  openAddForm(e.lngLat);
 });
 
 fetch('points.json')
@@ -133,6 +147,22 @@ function renderData(geojson) {
     },
   });
 
+  map.addSource('local', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: localPoints },
+  });
+  map.addLayer({
+    id: 'local-points',
+    type: 'circle',
+    source: 'local',
+    paint: {
+      'circle-radius': 8,
+      'circle-color': '#d97706',
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#fff',
+    },
+  });
+
   const bounds = new maplibregl.LngLatBounds();
   geojson.features.forEach((f) => bounds.extend(f.geometry.coordinates));
   map.fitBounds(bounds, { padding: 30, maxZoom: 6 });
@@ -159,6 +189,24 @@ function renderData(geojson) {
       .setLngLat(f.geometry.coordinates)
       .setHTML(popupHtml(f.properties))
       .addTo(map);
+  });
+
+  map.on('click', 'local-points', (e) => {
+    const f = e.features[0];
+    const p = f.properties;
+    const popup = new maplibregl.Popup({ offset: 16 })
+      .setLngLat(f.geometry.coordinates)
+      .setHTML(
+        popupHtml(p) +
+        '<button id="del-local" type="button">Delete this point</button>',
+      )
+      .addTo(map);
+    document.getElementById('del-local').onclick = () => {
+      localPoints = localPoints.filter((x) => x.properties.id !== p.id);
+      saveLocal();
+      updateLocalSource();
+      popup.remove();
+    };
   });
 
   map.on('mouseenter', 'clusters', () => {
@@ -246,4 +294,87 @@ function escapeHtml(s) {
     '"': '&quot;',
     "'": '&#39;',
   }[c]));
+}
+
+function loadLocal() {
+  try {
+    return JSON.parse(localStorage.getItem('campmap_local_points')) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocal() {
+  try {
+    localStorage.setItem('campmap_local_points', JSON.stringify(localPoints));
+  } catch (err) {
+    console.error('Could not save to localStorage', err);
+  }
+}
+
+function updateLocalSource() {
+  if (!map.getSource('local')) return;
+  map.getSource('local').setData({ type: 'FeatureCollection', features: localPoints });
+}
+
+function toggleAddMode() {
+  addMode = !addMode;
+  document.getElementById('add-toggle').classList.toggle('active', addMode);
+  map.getCanvas().style.cursor = addMode ? 'crosshair' : '';
+}
+
+function openAddForm(lngLat) {
+  const popup = new maplibregl.Popup({ offset: 16 })
+    .setLngLat(lngLat)
+    .setHTML(
+      '<h3>New point</h3>' +
+      '<p class="meta">Click Save to keep it on this browser.</p>' +
+      '<input id="np-name" placeholder="Name"><br>' +
+      '<input id="np-cat" placeholder="Category" value="Custom"><br>' +
+      '<input id="np-desc" placeholder="Description">' +
+      '<p><button id="np-save" type="button">Save</button> ' +
+      '<button id="np-cancel" type="button">Cancel</button></p>',
+    )
+    .addTo(map);
+
+  document.getElementById('np-save').onclick = () => {
+    const name = document.getElementById('np-name').value || 'Unnamed';
+    const category = document.getElementById('np-cat').value || 'Custom';
+    const description = document.getElementById('np-desc').value;
+    localPoints.push({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [lngLat.lng, lngLat.lat] },
+      properties: {
+        id: Date.now(),
+        name,
+        category,
+        description,
+        local: true,
+      },
+    });
+    saveLocal();
+    updateLocalSource();
+    popup.remove();
+    if (addMode) toggleAddMode();
+  };
+  document.getElementById('np-cancel').onclick = () => {
+    popup.remove();
+    if (addMode) toggleAddMode();
+  };
+}
+
+function exportLocal() {
+  if (!localPoints.length) {
+    alert('No locally added points to export yet.');
+    return;
+  }
+  const blob = new Blob(
+    [JSON.stringify({ type: 'FeatureCollection', features: localPoints }, null, 2)],
+    { type: 'application/json' },
+  );
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'campmap-local-points.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
